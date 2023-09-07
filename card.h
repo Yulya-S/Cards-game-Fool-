@@ -1,89 +1,110 @@
 #ifndef _CARD_
 #define _CARD_
 
-#include <iostream>
+using namespace sf;
 using namespace std;
 
-enum ConsoleColor {
-	Cyan = 3,
-	DarkGray = 8,
-	LightGreen = 10,
-	LightCyan = 11,
-	LightRed = 12,
-	Yellow = 14,
-	White = 15
-};
+void message(RenderWindow& window, const bool pcTakeGard);
 
-void SetColor(ConsoleColor text);
+class Button {
+	Text text;
+	RectangleShape rectangle;
+public:
+	Button(const Text& t, const int x, const int y);
+	bool MouseHovered(const RenderWindow& window) const { return (rectangle.getGlobalBounds().contains(window.mapPixelToCoords(Mouse::getPosition(window)))); };
+	void SetPosition(const int x, const int y) { rectangle.setPosition(x, y); };
+	void SetString(const Text& t) { text = t; };
+	void Draw(RenderWindow& window);
+};
 
 class Card {
-	char name;
 	int price;
-	bool trump;
+	RectangleShape rectangle;
+	string textureName;
+	Texture texture;
 public:
-	char suit;
-	void naming(int Price, char Suit);
-	bool Trump() const;
-	bool ruleOfDifference(Card c) const;
-	void itTrump();
-	Card& operator =(const Card& c);
+	bool headUp = false;
+	bool trump = false;
+	int suit; // 3, 4, 5, 6
+	Card(const int Price, const int Suit);
+	void Draw(RenderWindow& window, const int x, const int y);
+
+	// Изменения
+	void SetTexture() {
+		if (headUp) texture.loadFromFile("img/head_up.png");
+		else texture.loadFromFile(textureName);
+	}
+	void SetPosition(const int x, const int y) { rectangle.setPosition(x, y); }
+	void Rotate(const int angle) { rectangle.setRotation(angle); }
+	void Scale(const float meaning) { rectangle.scale(meaning, meaning); };
+	void ThisIsTrump() { trump = true; };
+
+	// Проверки
+	bool MouseHovered(const RenderWindow& window) const { return (rectangle.getGlobalBounds().contains(window.mapPixelToCoords(Mouse::getPosition(window)))); };
 	bool operator >(const Card& c) const;
-	bool operator ==(const Card& c) const;
-	friend ostream& operator <<(ostream& out, const Card c);
-	friend class Koloda;
+	bool operator <(const Card& c) const;
+	int Price() const {
+		int pr = trump ? 14 : 0;
+		return price + pr;
+	};
+	bool OnePrice(const Card& c) const { return (price == c.price); };
+	bool OneSuit(const char c) const { return (suit == c); };
 };
 
-class Ruka {
-	Card card[36];
-	int needTakeCard = 0;
+class Deck {
+	RectangleShape suit;
+	Texture texture;
 public:
-	int kolvo() const;
-	int psThingFirstAttack();
-	bool amITakeCard() const;
-	void deliteCard(int i);
-	friend class Koloda;
-	friend class Table;
-	friend ostream& operator <<(ostream& out, const Ruka k);
+	char trumpSuit;
+	vector<Card*> cards;
+	Deck();
+	void Draw(RenderWindow& window);
 };
 
-class Koloda {
-	int topGranKolva = 10;
-	bool whoGo; //если true - игрок, false - компьютер
+class Arm {
 public:
-	int nomer;
-	char trump;
-	Card card[36];
-	void clear();
-	void trumps();
-	bool WhoGo() const;
-	bool TopGranKolva() const;
-	void goNext();
-	void takeCard(Ruka& a, Ruka& b);
-	bool endGame(Ruka a, Ruka b) const;
-	void whoWiner(Ruka a, Ruka b);
-	friend class Table;
-	friend ostream& operator <<(ostream& out, const Koloda k);
+	bool IAmOnDefensive = true;
+	vector<Card*> cards;
+	bool TakeCard(Deck& deck, const bool headUp);
+	void Sort();
 };
 
 class Table {
-	Card attack[36], protect[36];
-	bool dubleGo = false;
 public:
-	int kolvoAttack = 0, kolvoProtect = 0;
-	void clear();
-	bool pustota() const;
-	bool proverka(Ruka a, int i) const;
-	bool endHod() const;
-	void trueDubleGo();
-	bool DubleGo() const;
-	void writeElem(Ruka& a, int i, bool isItProtect);
-	void iFoundProtect(Ruka& a, Koloda kolod);
-	void searchSimilarCard(Ruka& a, const Koloda koloda, const Ruka& pl);
-	void proverkaProtecterCard(Ruka& a, int i, Koloda koloda);
-	void iTakeAllCard(Ruka& a);
-	friend ostream& operator <<(ostream& out, const Table t);
+	int resetNumber = 0;
+	vector<Card*> protection;
+	vector<Card*> attack;
+	void Draw(RenderWindow& window);
+	//int AttackSize() { return attack.size(); };
+	//int ProtectionSize() { return protection.size(); };
+	bool PutAttack(const Card& card, const int numberCardsOpponentHas);
+	bool PutProtection(const Card& card);
+	void GiveAwayCards(Arm& arm, const bool headUp);
+	void Clear() { attack.clear(); protection.clear(); };
 };
 
-void cardEnding(int i);
+class Computer : public Arm {
+	int strategyNumber;
+public:
+	Computer() {
+		srand((unsigned)time(0));
+		strategyNumber = rand() % 2;
+	};
+	void Draw(RenderWindow& window);
+	int Choose(RenderWindow& window, Table& table, Deck& deck, Computer& pc, const int numberCardsOpponentHas);
+	void ChoosingStrategy();
+	int IndexMinCardToAttack();
+	int IndexMinCardToProtect(const Card& attackCard);
+
+	// Функции стратегий
+	int Eight_Nine(RenderWindow& window, Table& table, int numberCardsOpponentHas, int numberCardsInDeck);
+	int Smaller(RenderWindow& window, Table& table, int numberCardsOpponentHas, int numberCardsInDeck);
+};
+
+class Player : public Arm {
+public:
+	void Draw(RenderWindow& window);
+	int Choose(RenderWindow& window, Table& table, Deck& deck, Computer& pc, const int numberCardsOpponentHas);
+};
 
 #endif
